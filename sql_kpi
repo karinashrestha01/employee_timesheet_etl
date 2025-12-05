@@ -1,0 +1,106 @@
+1) Active Headcount Over Time
+SELECT d.work_date,
+       COUNT(e.employee_id) AS active_headcount
+FROM dim_employee e
+JOIN dim_date d
+  ON d.work_date BETWEEN e.hire_date AND COALESCE(e.termination_date, CURRENT_DATE)
+GROUP BY d.work_date
+ORDER BY d.work_date;
+
+2)Turnover Trend
+SELECT EXTRACT(MONTH FROM e.termination_date) AS month,
+       COUNT(e.employee_id) AS terminations
+FROM dim_employee e
+WHERE e.termination_date IS NOT NULL
+GROUP BY EXTRACT(MONTH FROM e.termination_date)
+ORDER BY month;
+
+3)Average Tenure by Department
+Average duration employees worked per department.
+SELECT d.department_name,
+       AVG(COALESCE(e.termination_date, CURRENT_DATE) - e.hire_date) AS avg_tenure_days
+FROM dim_employee e
+JOIN dim_department d ON e.department_key = d.department_key
+GROUP BY d.department_name;
+
+4)Average Working Hours per Employee
+Mean working hours per day/week.
+SELECT employee_key,
+       AVG(EXTRACT(EPOCH FROM (scheduled_end::time - scheduled_start::time))/3600) AS avg_work_hours
+FROM fact_timesheet
+GROUP BY employee_key;
+
+5)Late Arrival Frequency
+SELECT 
+    employee_key,
+    COUNT(*) AS late_arrival_frequency
+FROM 
+    fact_timesheet
+WHERE 
+    punch_in IS NOT NULL
+    AND scheduled_start IS NOT NULL
+    AND (work_date + punch_in::time) > (work_date + scheduled_start::time + INTERVAL '5 minutes')
+GROUP BY 
+    employee_key
+ORDER BY 
+    late_arrival_frequency DESC;
+    
+6)Early Departure Count
+SELECT 
+    employee_key,
+    COUNT(*) AS early_departure_count
+FROM 
+    fact_timesheet
+WHERE 
+    punch_out IS NOT NULL
+    AND scheduled_end IS NOT NULL
+    AND (work_date + punch_out::time) < (work_date + scheduled_end::time - INTERVAL '5 minutes')
+GROUP BY 
+    employee_key
+ORDER BY 
+    early_departure_count DESC;
+
+7) Total Overtime Count
+SELECT 
+    employee_key,
+    COUNT(*) AS overtime_count
+FROM 
+    fact_timesheet
+WHERE 
+    punch_in IS NOT NULL
+    AND punch_out IS NOT NULL
+    AND scheduled_start IS NOT NULL
+    AND scheduled_end IS NOT NULL
+    -- Actual worked duration
+    AND ((work_date + punch_out::time) - (work_date + punch_in::time))
+        >
+        -- Scheduled duration + 5 minutes grace
+        ((work_date + scheduled_end::time) - (work_date + scheduled_start::time) + INTERVAL '5 minutes')
+GROUP BY 
+    employee_key
+ORDER BY 
+    overtime_count DESC;
+
+8)Rolling Average Working Hours
+SELECT
+    employee_key,
+    work_date,
+    hours_worked,
+    ROUND(rolling_avg::numeric, 2) AS rolling_avg_7day
+FROM (
+    SELECT
+        employee_key,
+        work_date,
+        hours_worked,
+        AVG(hours_worked) OVER (
+            PARTITION BY employee_key
+            ORDER BY work_date
+            ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+        ) AS rolling_avg
+    FROM fact_timesheet
+) sub
+ORDER BY
+    employee_key,
+    work_date;
+
+

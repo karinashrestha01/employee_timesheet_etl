@@ -1,0 +1,16 @@
+pandas
+sqlalchemy
+psycopg2-binary
+fastapi
+uvicorn
+pydantic
+python-dotenv
+minio
+luigi
+matplotlib
+seaborn
+plotly
+bcrypt
+python-jose
+requests
+    
