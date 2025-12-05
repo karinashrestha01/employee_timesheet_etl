@@ -74,3 +74,6 @@ def health_check():
             "redoc": "/redoc"
         }
     }
+
+
+#Fast API application
