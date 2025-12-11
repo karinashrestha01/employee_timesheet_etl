@@ -1,4 +1,4 @@
-# ETL/quality_checks.py
+# ETL/common/quality_checks.py
 """
 Post-Processing & Quality Control Module
 - Row count validation
@@ -45,7 +45,7 @@ class QCReport:
     def passed_count(self) -> int:
         return sum(1 for r in self.results if r.passed)
     
-    def add(self, result: QCResult):
+    def add(self, result: QCResult) -> None:
         self.results.append(result)
         status = "PASS" if result.passed else "FAIL"
         logger.info(f"[QC {status}] {result.table_name}: {result.check_name} - {result.message}")
@@ -66,6 +66,10 @@ class QCReport:
         lines.append("=" * 60)
         return "\n".join(lines)
 
+
+# =============================================================================
+# INDIVIDUAL CHECK FUNCTIONS
+# =============================================================================
 
 def check_row_count(df: pd.DataFrame, table_name: str, min_rows: int = 1) -> QCResult:
     """Check that DataFrame has minimum required rows."""
@@ -178,7 +182,7 @@ def check_referential_integrity(
             check_name=f"ref_integrity_{child_key}",
             table_name=child_table,
             passed=True,
-            message=f"Key columns not found for check"
+            message="Key columns not found for check"
         )
     
     child_keys = set(child_df[child_key].dropna().unique())
@@ -240,6 +244,10 @@ def check_date_range(
     )
 
 
+# =============================================================================
+# AGGREGATE VALIDATION FUNCTIONS
+# =============================================================================
+
 def run_quality_checks(
     df_employee: pd.DataFrame,
     df_department: pd.DataFrame,
@@ -299,6 +307,13 @@ def validate_post_load(session, models_and_tables: Dict[str, Any]) -> QCReport:
     """
     Post-load validation: verify data in database matches expectations.
     Run this after upserting to confirm data integrity.
+    
+    Args:
+        session: SQLAlchemy session
+        models_and_tables: Dict mapping table names to model classes
+        
+    Returns:
+        QCReport with validation results
     """
     from sqlalchemy import func
     

@@ -120,6 +120,8 @@ def update_employee(
     if not employee:
         raise HTTPException(status_code=404, detail=f"Employee with key {employee_key} not found")
     
+    print( )
+    
     # Update only provided fields
     update_data = employee_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():

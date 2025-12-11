@@ -1,66 +1,82 @@
 1) Active Headcount Over Time
-SELECT d.work_date,
-       COUNT(e.employee_id) AS active_headcount
+SELECT 
+    d.work_date,
+    COUNT(DISTINCT e.employee_id) AS active_headcount
 FROM dim_employee e
 JOIN dim_date d
-  ON d.work_date BETWEEN e.hire_date AND COALESCE(e.termination_date, CURRENT_DATE)
+  ON d.work_date >= e.hire_date
+ AND (e.termination_date = '2262-01-01' OR d.work_date <= e.termination_date)
+WHERE e.is_active = 1
 GROUP BY d.work_date
 ORDER BY d.work_date;
 
+
 2)Turnover Trend
-SELECT EXTRACT(MONTH FROM e.termination_date) AS month,
-       COUNT(e.employee_id) AS terminations
-FROM dim_employee e
-WHERE e.termination_date IS NOT NULL
-GROUP BY EXTRACT(MONTH FROM e.termination_date)
-ORDER BY month;
+SELECT 
+    EXTRACT(YEAR FROM termination_date) AS termination_year,
+    COUNT(*) AS total_terminated
+FROM dim_employee
+WHERE termination_date <> '2262-01-01'
+GROUP BY EXTRACT(YEAR FROM termination_date)
+ORDER BY termination_year;
 
 3)Average Tenure by Department
 Average duration employees worked per department.
-SELECT d.department_name,
-       AVG(COALESCE(e.termination_date, CURRENT_DATE) - e.hire_date) AS avg_tenure_days
+SELECT 
+    d.department_name,d.department_id,
+    ROUND(AVG((e.termination_date - e.hire_date) / 365), 0) AS avg_tenure_years
 FROM dim_employee e
-JOIN dim_department d ON e.department_key = d.department_key
-GROUP BY d.department_name;
+JOIN dim_department d 
+    ON e.department_key = d.department_key
+WHERE e.termination_date <> '2262-01-01'
+GROUP BY d.department_name,d.department_id
+ORDER BY d.department_id;
+
 
 4)Average Working Hours per Employee
 Mean working hours per day/week.
-SELECT employee_key,
-       AVG(EXTRACT(EPOCH FROM (scheduled_end::time - scheduled_start::time))/3600) AS avg_work_hours
-FROM fact_timesheet
-GROUP BY employee_key;
+SELECT 
+    e.employee_id,
+    e.first_name,
+    e.last_name,
+    ROUND(AVG(COALESCE(f.hours_worked, 0))::numeric, 0) AS avg_daily_hours
+FROM fact_timesheet f
+JOIN dim_employee e
+    ON f.employee_key = e.employee_key
+GROUP BY e.employee_id, e.first_name, e.last_name
+ORDER BY avg_daily_hours DESC;
+
 
 5)Late Arrival Frequency
 SELECT 
-    employee_key,
-    COUNT(*) AS late_arrival_frequency
-FROM 
-    fact_timesheet
+    e.employee_id,
+    e.first_name,
+    e.last_name,
+    COUNT(*) AS late_days
+FROM fact_timesheet f
+JOIN dim_employee e
+    ON f.employee_key = e.employee_key
 WHERE 
-    punch_in IS NOT NULL
-    AND scheduled_start IS NOT NULL
-    AND (work_date + punch_in::time) > (work_date + scheduled_start::time + INTERVAL '5 minutes')
-GROUP BY 
-    employee_key
-ORDER BY 
-    late_arrival_frequency DESC;
+    f.punch_in::time > (f.scheduled_start::time + INTERVAL '5 minutes')
+GROUP BY e.employee_id, e.first_name, e.last_name
+ORDER BY late_days DESC;
     
 6)Early Departure Count
 SELECT 
-    employee_key,
-    COUNT(*) AS early_departure_count
-FROM 
-    fact_timesheet
-WHERE 
-    punch_out IS NOT NULL
-    AND scheduled_end IS NOT NULL
-    AND (work_date + punch_out::time) < (work_date + scheduled_end::time - INTERVAL '5 minutes')
-GROUP BY 
-    employee_key
-ORDER BY 
-    early_departure_count DESC;
+    e.employee_id,
+    e.first_name,
+    e.last_name,
+    COUNT(*) AS early_departure_days
+FROM fact_timesheet f
+JOIN dim_employee e
+    ON f.employee_key = e.employee_key
+WHERE f.punch_out::time < (f.scheduled_end::time - INTERVAL '5 minutes')
+GROUP BY e.employee_id, e.first_name, e.last_name
+ORDER BY early_departure_days DESC;
+
 
 7) Total Overtime Count
+calculating the average hours worked over the last 7 days for each employee.
 SELECT 
     employee_key,
     COUNT(*) AS overtime_count
@@ -82,25 +98,30 @@ ORDER BY
     overtime_count DESC;
 
 8)Rolling Average Working Hours
-SELECT
-    employee_key,
-    work_date,
-    hours_worked,
-    ROUND(rolling_avg::numeric, 2) AS rolling_avg_7day
-FROM (
-    SELECT
-        employee_key,
-        work_date,
-        hours_worked,
-        AVG(hours_worked) OVER (
-            PARTITION BY employee_key
-            ORDER BY work_date
-            ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
-        ) AS rolling_avg
-    FROM fact_timesheet
-) sub
-ORDER BY
-    employee_key,
-    work_date;
+calculating the average hours worked over the last 7 days for each employee.
+SELECT 
+    f.employee_key,
+    e.first_name,
+    e.last_name,
+    f.work_date,
+    ROUND(AVG(f.hours_worked::numeric) OVER (
+        PARTITION BY f.employee_key
+        ORDER BY f.work_date
+        ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+    ), 0) AS rolling_avg_7days
+FROM fact_timesheet f
+JOIN dim_employee e
+    ON f.employee_key = e.employee_key
+ORDER BY f.employee_key, f.work_date;
+
+9)Early Attribution Rate 
+proportion of employees who leave a company within a short period after joining, usually within the first few months (commonly 3–6 months).
+SELECT 
+    ROUND(
+        COUNT(*) FILTER (WHERE (termination_date - hire_date) <= 90)::decimal
+        / COUNT(*) * 100, 2
+    ) AS early_attrition_rate_percentage
+FROM dim_employee
+WHERE termination_date <> '2262-01-01';
 
 

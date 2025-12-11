@@ -11,7 +11,6 @@ import pandas as pd
 import numpy as np
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
-from ETL.transform_clean import transform_data
 from db.models import Base, DimEmployee, DimDepartment, DimDate, FactTimesheet
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -32,6 +31,11 @@ def _build_connection_url() -> str:
 
 ENGINE = create_engine(_build_connection_url(), echo=False, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=ENGINE)
+
+def get_engine():
+    """Get the database engine instance."""
+    return ENGINE
+
 
 def create_all_tables() -> None:
     try:
