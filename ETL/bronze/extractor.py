@@ -1,8 +1,4 @@
 # ETL/bronze/extractor.py
-"""
-Bronze Layer - Data extraction from source systems (MinIO).
-Downloads raw data files from object storage.
-"""
 
 import os
 import logging
@@ -77,17 +73,6 @@ def extract_from_local(
     download_dir: str = "datasets",
     file_patterns: Optional[List[str]] = None,
 ) -> str:
-    """
-    Copy data files from local directory.
-    
-    Args:
-        source_dir: Source directory containing files
-        download_dir: Target directory for files
-        file_patterns: Optional list of file patterns to match (e.g., ["*.csv"])
-    
-    Returns:
-        Path to download directory
-    """
     import shutil
     from pathlib import Path
     

@@ -2,20 +2,13 @@
 """
 Medallion Architecture ETL Pipeline Orchestrator.
 Runs Bronze → Silver → Gold data flow with quality checks.
-
-Usage:
-    python -m ETL.orchestrator
-    
-    Or from code:
-        from ETL import run_etl_medallion
-        results = run_etl_medallion()
 """
 
 import sys
 import logging
 import traceback
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 # Ensure project root is in sys.path for imports when running directly
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -57,9 +50,7 @@ def run_etl_medallion(
     }
     
     try:
-        # ============================================================
         # STEP 1: BRONZE LAYER - Load Raw Data
-        # ============================================================
         logger.info("")
         logger.info("=" * 70)
         logger.info("  STEP 1: BRONZE LAYER - Loading raw data")
@@ -71,9 +62,8 @@ def run_etl_medallion(
         logger.info(f"Bronze complete: {bronze_result['employees']} employees, "
                    f"{bronze_result['timesheets']} timesheets loaded")
         
-        # ============================================================
+
         # STEP 2: SILVER LAYER - Transform with Incremental Loading
-        # ============================================================
         logger.info("")
         logger.info("=" * 70)
         logger.info("  STEP 2: SILVER LAYER - Transforming to staging")
@@ -82,7 +72,7 @@ def run_etl_medallion(
         silver_result = run_silver_transform(validate=True)
         results["silver"] = silver_result
         
-        # Check validation results
+        # Check validation 
         if silver_result.get("validation"):
             validation_failed = any(
                 not report.passed for report in silver_result["validation"]
@@ -96,9 +86,7 @@ def run_etl_medallion(
         logger.info(f"Silver complete: {silver_result['employees']} employees, "
                    f"{silver_result['timesheets']} timesheets processed")
         
-        # ============================================================
         # STEP 3: GOLD LAYER - Load Dimensional Model
-        # ============================================================
         logger.info("")
         logger.info("=" * 70)
         logger.info("  STEP 3: GOLD LAYER - Loading dimensional model")
@@ -113,9 +101,7 @@ def run_etl_medallion(
                        f"{gold_result['dim_date']} dates, "
                        f"{gold_result['fact_timesheet']} timesheets")
         
-        # ============================================================
         # STEP 4: POST-LOAD VALIDATION
-        # ============================================================
         logger.info("")
         logger.info("=" * 70)
         logger.info("  STEP 4: POST-LOAD VALIDATION")
@@ -138,12 +124,9 @@ def run_etl_medallion(
         finally:
             session.close()
         
-        # ============================================================
-        # SUMMARY
-        # ============================================================
         logger.info("")
         logger.info("=" * 70)
-        logger.info("  ETL PIPELINE COMPLETED SUCCESSFULLY")
+        logger.info("ETL PIPELINE COMPLETED SUCCESSFULLY")
         logger.info("=" * 70)
         logger.info("")
         logger.info("Summary:")

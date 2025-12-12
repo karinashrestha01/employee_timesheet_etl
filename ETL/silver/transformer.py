@@ -1,9 +1,4 @@
 # ETL/silver/transformer.py
-"""
-Silver Layer ETL - Transform Bronze data to cleaned staging tables.
-Implements incremental loading based on watermark timestamps.
-"""
-
 import sys
 import logging
 from pathlib import Path
@@ -17,7 +12,7 @@ from sqlalchemy import text
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from db.db_utils import get_engine, get_session
-from db.models_bronze import RawEmployee, RawTimesheet
+# from db.models_bronze import RawEmployee, RawTimesheet
 from db.models_silver import SilverBase, StagingEmployee, StagingTimesheet, ETLWatermark
 from ETL.silver.validator import run_silver_validation
 
@@ -28,18 +23,14 @@ from ETL.silver.utils import (
     clean_date_column,
     clean_date_column_with_sentinel,
     clean_comment,
-    SENTINEL_END_DATE,
-    NULL_PLACEHOLDERS,
+    SENTINEL_END_DATE
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 
-# =============================================================================
 # SCHEMA AND TABLE MANAGEMENT
-# =============================================================================
-
 def create_staging_schema(engine):
     """Create the 'staging' schema if it doesn't exist."""
     with engine.connect() as conn:
@@ -55,10 +46,8 @@ def create_silver_tables(engine):
     logger.info("Silver tables created successfully")
 
 
-# =============================================================================
-# WATERMARK MANAGEMENT (Incremental Loading)
-# =============================================================================
 
+# WATERMARK MANAGEMENT (Incremental Loading)
 def get_watermark(session, table_name: str) -> datetime:
     """Get the last processed watermark for a table."""
     result = session.query(ETLWatermark).filter_by(table_name=table_name).first()
@@ -82,10 +71,7 @@ def update_watermark(session, table_name: str, timestamp: datetime):
     session.commit()
 
 
-# =============================================================================
 # DATA CLEANING FUNCTIONS
-# =============================================================================
-
 def clean_employee_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     Clean and transform raw employee data.
@@ -188,11 +174,7 @@ def clean_timesheet_data(df: pd.DataFrame) -> pd.DataFrame:
     logger.info(f"Timesheet data cleaned: {len(df)} records")
     return df
 
-
-# =============================================================================
 # INCREMENTAL LOADING FUNCTIONS
-# =============================================================================
-
 def load_incremental_employees(session, engine, batch_id: str) -> pd.DataFrame:
     """Load and transform new employee records from Bronze layer."""
     watermark = get_watermark(session, "raw_employee")
@@ -275,10 +257,7 @@ def insert_staging_data(df: pd.DataFrame, table_class, session, batch_size: int 
     return total
 
 
-# =============================================================================
 # MAIN ETL FUNCTION
-# =============================================================================
-
 def run_silver_transform(validate: bool = True):
     """
     Run the complete Silver layer ETL with incremental loading.

@@ -13,13 +13,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship, declarative_base
 
 Base = declarative_base()
-
-
-# -------------------------------------------------
-# 1️⃣ dim_employee (SCD2-ready)
-# -------------------------------------------------
 class DimEmployee(Base):
-    """Dimension table storing employee metadata with SCD2 support."""
 
     __tablename__ = "dim_employee"
 
@@ -31,7 +25,7 @@ class DimEmployee(Base):
     department_key = Column(Integer, ForeignKey("dim_department.department_key"))
     hire_date = Column(Date)
     termination_date = Column(Date)
-    is_active = Column(Integer)  # 1 = current, 0 = historical
+    is_active = Column(Integer) 
     start_date = Column(Date, nullable=False)  # SCD2 start
     end_date = Column(Date)  # SCD2 end
 
@@ -41,18 +35,13 @@ class DimEmployee(Base):
         return f"<DimEmployee(key={self.employee_key}, id={self.employee_id}, dept={self.department_key}, name={self.first_name} {self.last_name})>"
 
 
-# -------------------------------------------------
-# 2️⃣ dim_department (SCD2-ready)
-# -------------------------------------------------
 class DimDepartment(Base):
-    """Dimension table storing department metadata with SCD2 support."""
-
     __tablename__ = "dim_department"
 
     department_key = Column(Integer, primary_key=True, autoincrement=True)
     department_id = Column(String, nullable=False)  # natural/business key
     department_name = Column(String, nullable=False)
-    is_active = Column(Integer, default=1)  # 1 = current, 0 = historical
+    is_active = Column(Integer, default=1)  
     start_date = Column(Date, nullable=False)
     end_date = Column(Date)
 
@@ -62,12 +51,7 @@ class DimDepartment(Base):
         return f"<DimDepartment(key={self.department_key}, id={self.department_id}, name={self.department_name})>"
 
 
-# -------------------------------------------------
-# 3️⃣ dim_date
-# -------------------------------------------------
 class DimDate(Base):
-    """Dimension table storing date metadata."""
-
     __tablename__ = "dim_date"
 
     date_id = Column(Integer, primary_key=True, autoincrement=True)
@@ -84,12 +68,7 @@ class DimDate(Base):
         return f"<DimDate(id={self.date_id}, date={self.work_date})>"
 
 
-# -------------------------------------------------
-# 4️⃣ fact_timesheet
-# -------------------------------------------------
 class FactTimesheet(Base):
-    """Fact table storing daily employee timesheet logs."""
-
     __tablename__ = "fact_timesheet"
 
     id = Column(Integer, primary_key=True, autoincrement=True)

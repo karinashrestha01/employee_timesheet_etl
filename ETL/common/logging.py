@@ -15,7 +15,6 @@ from typing import Optional
 DEFAULT_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 DEFAULT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-
 def configure_logging(
     level: int = logging.INFO,
     log_file: Optional[str] = None,

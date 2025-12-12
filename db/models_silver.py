@@ -1,9 +1,4 @@
 # db/models_silver.py
-"""
-Silver Layer Models - Cleaned and validated staging data.
-Schema: staging
-"""
-
 from sqlalchemy import Column, Integer, String, DateTime, Date, Float, Text
 from sqlalchemy.orm import declarative_base
 from datetime import datetime
@@ -12,7 +7,6 @@ SilverBase = declarative_base()
 
 
 class StagingEmployee(SilverBase):
-    """Staging employee data - cleaned and validated."""
     
     __tablename__ = "stg_employee"
     __table_args__ = {"schema": "staging"}
@@ -41,7 +35,6 @@ class StagingEmployee(SilverBase):
 
 
 class StagingTimesheet(SilverBase):
-    """Staging timesheet data - cleaned and validated."""
     
     __tablename__ = "stg_timesheet"
     __table_args__ = {"schema": "staging"}

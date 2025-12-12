@@ -5,7 +5,7 @@ Silver Layer Validation - Quality checks for staging data before promotion to Go
 
 import logging
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List
 import pandas as pd
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")

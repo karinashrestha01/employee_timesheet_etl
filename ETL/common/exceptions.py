@@ -1,9 +1,4 @@
 # ETL/common/exceptions.py
-"""
-Custom exceptions for ETL pipeline.
-Provides specific error types for each layer and common error scenarios.
-"""
-
 from typing import Optional, Dict, Any
 
 

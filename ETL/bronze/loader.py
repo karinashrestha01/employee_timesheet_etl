@@ -1,8 +1,4 @@
 # ETL/bronze/loader.py
-"""
-Bronze Layer ETL - Load raw CSV data into Bronze (raw) schema.
-No transformations applied - data stored exactly as received from source.
-"""
 
 import os
 import logging
@@ -20,10 +16,7 @@ from db.models_bronze import BronzeBase, RawEmployee, RawTimesheet
 logger = logging.getLogger(__name__)
 
 
-# =============================================================================
 # SCHEMA AND TABLE MANAGEMENT
-# =============================================================================
-
 def create_bronze_schema(engine) -> None:
     """Create the 'raw' schema if it doesn't exist."""
     with engine.connect() as conn:
@@ -39,19 +32,11 @@ def create_bronze_tables(engine) -> None:
     logger.info("Bronze tables created successfully")
 
 
-# =============================================================================
 # FILE TRACKING
-# =============================================================================
-
 def get_loaded_files(session: Session, table_class) -> Set[str]:
     """Get list of files already loaded into a Bronze table."""
     result = session.query(table_class.source_file).distinct().all()
     return {row[0] for row in result}
-
-
-# =============================================================================
-# DATA LOADING
-# =============================================================================
 
 def load_csv_to_bronze(
     file_path: str, 
@@ -199,10 +184,7 @@ def load_timesheets_to_bronze(
     
     return total_loaded
 
-
-# =============================================================================
 # MAIN ETL FUNCTION
-# =============================================================================
 
 def run_bronze_load(data_dir: str = "datasets") -> Dict[str, Any]:
     """

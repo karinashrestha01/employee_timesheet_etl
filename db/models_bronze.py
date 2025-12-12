@@ -1,9 +1,4 @@
 # db/models_bronze.py
-"""
-Bronze Layer Models - Raw data tables storing unchanged CSV data.
-Schema: raw
-"""
-
 from sqlalchemy import Column, Integer, String, DateTime, Text
 from sqlalchemy.orm import declarative_base
 from datetime import datetime
@@ -38,8 +33,6 @@ class RawEmployee(BronzeBase):
 
 
 class RawTimesheet(BronzeBase):
-    """Raw timesheet data from CSV files - no transformations applied."""
-    
     __tablename__ = "raw_timesheet"
     __table_args__ = {"schema": "raw"}
     

@@ -3,7 +3,7 @@
 import sys, os, logging
 from dotenv import load_dotenv
 from pathlib import Path
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker, Session
@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
-from db.models import Base, DimEmployee, DimDepartment, DimDate, FactTimesheet
+from db.models import Base
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ def clean_df_for_sql(df: pd.DataFrame) -> pd.DataFrame:
     return df.where(pd.notna(df), None)
 
 def upsert_dataframe(df: pd.DataFrame, table_class, session: Session, key_cols: list, batch_size: int = 500):
-    """Perform SCD2/UPSERT for the given table based on key columns."""
+    """Perform SCD2/UPSERT for the columns"""
     df = clean_df_for_sql(df)
     records = df.to_dict(orient="records")
     

@@ -13,4 +13,3 @@ plotly
 bcrypt
 python-jose
 requests
-    

@@ -318,15 +318,226 @@ The clean staging data is transformed into dimensional model:
 
 ---
 
+## ETL Orchestration
+
+### Pipeline Orchestrator
+**Location**: `ETL/orchestrator.py`
+
+The orchestrator runs the complete medallion pipeline in sequence:
+
+```python
+def run_etl_medallion(
+    download_dir: str = "datasets",
+    skip_on_validation_fail: bool = False
+) -> Dict[str, Any]:
+```
+
+### Pipeline Flow
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    run_etl_medallion()                          │
+├────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  STEP 1: BRONZE LAYER                                          │
+│  └─ run_bronze_load(download_dir)                              │
+│     • Load CSVs from datasets/ directory                       │
+│     • Insert into raw.raw_employee, raw.raw_timesheet          │
+│     • Track source files and load timestamps                   │
+│                                                                 │
+│  STEP 2: SILVER LAYER                                          │
+│  └─ run_silver_transform(validate=True)                        │
+│     • Incremental load from Bronze (watermark-based)           │
+│     • Clean and standardize data                               │
+│     • Filter orphan timesheets                                 │
+│     • Run validation checks                                    │
+│     • Insert into staging.stg_employee, staging.stg_timesheet  │
+│                                                                 │
+│  STEP 3: GOLD LAYER                                            │
+│  └─ run_gold_load()                                            │
+│     • Transform to dimensional model                           │
+│     • Upsert to dim_department, dim_employee, dim_date         │
+│     • Insert fact_timesheet records                            │
+│                                                                 │
+│  STEP 4: POST-LOAD VALIDATION                                  │
+│  └─ validate_post_load(session, models)                        │
+│     • Verify row counts in all Gold tables                     │
+│     • Generate QC report                                       │
+│                                                                 │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### Return Value Structure
+
+```python
+{
+    "bronze": {
+        "employees": 50,        # Records loaded
+        "timesheets": 10000     # Records loaded
+    },
+    "silver": {
+        "batch_id": "a1b2c3d4",      # Unique batch identifier
+        "employees": 50,              # Records processed
+        "timesheets": 1697,           # Records processed (after filtering)
+        "validation": [ValidationReport, ...]
+    },
+    "gold": {
+        "status": "success",
+        "dim_department": 38,
+        "dim_employee": 50,
+        "dim_date": 102,
+        "fact_timesheet": 1697
+    },
+    "post_load_validation": QCReport
+}
+```
+
+### Running the Orchestrator
+
+```bash
+# From command line
+cd c:\Leapfrog\etl-insights
+.\.venv\Scripts\python.exe -m ETL.orchestrator
+
+# Or directly
+.\.venv\Scripts\python.exe c:\Leapfrog\etl-insights\ETL\orchestrator.py
+
+# From Python code
+from ETL import run_etl_medallion
+results = run_etl_medallion()
+```
+
+### Error Handling
+
+- If any step fails, the exception is logged and re-raised
+- Option `skip_on_validation_fail=True` aborts pipeline on validation errors
+- Each layer is atomic - partial failures don't corrupt data
+
+---
+
+## REST API
+
+### Overview
+**Location**: `api/main.py`
+
+The API is built with **FastAPI** and exposes the Gold layer dimensional model for downstream applications.
+
+| Base URL | Documentation |
+|----------|---------------|
+| `http://localhost:8000` | `/docs` (Swagger UI) |
+| | `/redoc` (ReDoc) |
+
+### Running the API
+
+```bash
+cd c:\Leapfrog\etl-insights
+.\.venv\Scripts\python.exe -m uvicorn api.main:app --reload
+```
+
+### Endpoints
+
+#### Health Check
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Basic health check |
+| GET | `/health` | Detailed health check with endpoint list |
+
+#### Employees (CRUD)
+**Location**: `api/employees.py`
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/employees` | Create new employee |
+| GET | `/employees` | List employees with filters |
+| GET | `/employees/{employee_key}` | Get employee by key |
+| PUT | `/employees/{employee_key}` | Update employee |
+| DELETE | `/employees/{employee_key}` | Delete employee |
+
+**Query Parameters for List**:
+- `page` (int): Page number (default: 1)
+- `page_size` (int): Items per page (1-100, default: 20)
+- `is_active` (int): Filter by status (0 or 1)
+- `department_key` (int): Filter by department
+- `search` (str): Search in name or employee_id
+
+#### Timesheets (Read-Only)
+**Location**: `api/timesheets.py`
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/timesheets` | List timesheets with filters |
+| GET | `/timesheets/{id}` | Get timesheet with employee details |
+| GET | `/employees/{key}/timesheets` | Get timesheets for employee |
+
+**Query Parameters for List**:
+- `page`, `page_size`: Pagination
+- `employee_key` (int): Filter by employee
+- `date_from`, `date_to` (date): Date range filter
+- `department_key` (int): Filter by department
+- `pay_code` (str): Filter by pay code
+
+### Response Models
+**Location**: `api/schemas.py`
+
+```python
+class EmployeeResponse(BaseModel):
+    employee_key: int
+    employee_id: str
+    first_name: Optional[str]
+    last_name: Optional[str]
+    job_title: Optional[str]
+    department_key: Optional[int]
+    hire_date: Optional[date]
+    termination_date: Optional[date]
+    is_active: Optional[int]
+    start_date: date
+    end_date: Optional[date]
+
+class TimesheetResponse(BaseModel):
+    id: int
+    employee_key: int
+    department_key: Optional[int]
+    work_date: Optional[date]
+    punch_in: Optional[datetime]
+    punch_out: Optional[datetime]
+    hours_worked: Optional[float]
+    pay_code: Optional[str]
+    punch_in_comment: Optional[str]
+    punch_out_comment: Optional[str]
+```
+
+### Example API Calls
+
+```bash
+# List active employees
+curl "http://localhost:8000/employees?is_active=1&page_size=10"
+
+# Search employees by name
+curl "http://localhost:8000/employees?search=John"
+
+# Get timesheets for date range
+curl "http://localhost:8000/timesheets?date_from=2025-04-01&date_to=2025-04-30"
+
+# Get employee's timesheets
+curl "http://localhost:8000/employees/5/timesheets"
+```
+
+---
+
 ## Code Reference
 
 | File | Purpose |
 |------|---------|
+| `ETL/orchestrator.py` | Main pipeline runner |
 | `ETL/silver/utils.py` | Cleaning utility functions |
 | `ETL/silver/transformer.py` | Silver layer ETL with cleaning logic |
 | `ETL/silver/validator.py` | Validation rules and reporting |
 | `ETL/gold/loader.py` | Gold layer transformation |
 | `ETL/common/quality_checks.py` | Post-load quality checks |
+| `api/main.py` | FastAPI application entry point |
+| `api/employees.py` | Employee CRUD endpoints |
+| `api/timesheets.py` | Timesheet read endpoints |
+| `api/schemas.py` | Pydantic response models |
 
 ---
 
@@ -362,5 +573,13 @@ The clean staging data is transformed into dimensional model:
 │  • Dimensional star schema                                      │
 │  • Surrogate keys for all dimensions                            │
 │  • Ready for BI reporting and analytics                         │
+└─────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                         REST API                                 │
+│  • FastAPI with Swagger docs                                    │
+│  • Employees CRUD • Timesheets Read-Only                        │
+│  • Pagination, filtering, search                                │
 └─────────────────────────────────────────────────────────────────┘
 ```

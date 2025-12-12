@@ -1,8 +1,4 @@
 # ETL/common/__init__.py
-"""
-Common utilities shared across ETL layers.
-Includes quality checks, logging, and custom exceptions.
-"""
 
 from ETL.common.quality_checks import (
     QCResult,
