@@ -1,4 +1,3 @@
-# ETL/common/quality_checks.py
 """
 Post-Processing & Quality Control Module
 - Row count validation
@@ -67,9 +66,7 @@ class QCReport:
         return "\n".join(lines)
 
 
-# =============================================================================
 # INDIVIDUAL CHECK FUNCTIONS
-# =============================================================================
 
 def check_row_count(df: pd.DataFrame, table_name: str, min_rows: int = 1) -> QCResult:
     """Check that DataFrame has minimum required rows."""
@@ -244,9 +241,7 @@ def check_date_range(
     )
 
 
-# =============================================================================
 # AGGREGATE VALIDATION FUNCTIONS
-# =============================================================================
 
 def run_quality_checks(
     df_employee: pd.DataFrame,

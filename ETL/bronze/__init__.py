@@ -1,4 +1,3 @@
-# ETL/bronze/__init__.py
 from ETL.bronze.loader import (
     run_bronze_load,
     load_csv_to_bronze,

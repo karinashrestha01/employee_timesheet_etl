@@ -1,5 +1,3 @@
-# ETL/bronze/loader.py
-
 import os
 import logging
 from pathlib import Path
@@ -42,7 +40,7 @@ def load_csv_to_bronze(
     file_path: str, 
     table_class, 
     session: Session, 
-    batch_size: int = 1000
+    batch_size: Optional[int] = 1000
 ) -> int:
     """
     Load a single CSV file into a Bronze table.
@@ -98,9 +96,8 @@ def load_csv_to_bronze(
 
 
 def load_employees_to_bronze(
+    session: Session, 
     data_dir: str = "datasets", 
-    session: Optional[Session] = None, 
-    engine = None
 ) -> int:
     """
     Load all employee CSV files into Bronze layer.
@@ -113,11 +110,6 @@ def load_employees_to_bronze(
     Returns:
         Total number of records loaded
     """
-    if engine is None:
-        engine = get_engine()
-    if session is None:
-        session = get_session()
-    
     # Get already loaded files
     loaded_files = get_loaded_files(session, RawEmployee)
     logger.info(f"Already loaded employee files: {loaded_files}")

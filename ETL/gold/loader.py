@@ -1,4 +1,3 @@
-# ETL/gold/loader.py
 """
 Gold Layer ETL - Load from Silver (staging) to Gold (final dimensional model).
 Creates dimension and fact tables from cleaned staging data.
@@ -19,17 +18,14 @@ from sqlalchemy.dialects.postgresql import insert
 logger = logging.getLogger(__name__)
 
 
-# =============================================================================
 # CONSTANTS
-# =============================================================================
 
 # Sentinel date for "no end date" - industry standard for SCD2
 SENTINEL_END_DATE = pd.to_datetime("2222-12-01")
 
 
-# =============================================================================
 # TABLE MANAGEMENT
-# =============================================================================
+
 
 def create_gold_tables(engine) -> None:
     """Create Gold layer tables (public schema)."""
@@ -37,9 +33,7 @@ def create_gold_tables(engine) -> None:
     logger.info("Gold tables created successfully")
 
 
-# =============================================================================
 # DATA LOADING FROM STAGING
-# =============================================================================
 
 def clean_nulls(df: pd.DataFrame) -> pd.DataFrame:
     """Replace NaN/NaT with None for database insertion."""
@@ -83,9 +77,7 @@ def load_staging_timesheets(engine) -> pd.DataFrame:
     return df
 
 
-# =============================================================================
 # DIMENSION TRANSFORMATIONS
-# =============================================================================
 
 def transform_dim_department(emp_df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -169,9 +161,7 @@ def transform_dim_date(ts_df: pd.DataFrame) -> pd.DataFrame:
     return clean_nulls(df)
 
 
-# =============================================================================
 # FACT TRANSFORMATION
-# =============================================================================
 
 def transform_fact_timesheet(ts_df: pd.DataFrame, emp_df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -219,9 +209,7 @@ def transform_fact_timesheet(ts_df: pd.DataFrame, emp_df: pd.DataFrame) -> pd.Da
     return clean_nulls(df)
 
 
-# =============================================================================
 # MAIN ETL FUNCTION
-# =============================================================================
 
 def run_gold_load() -> Dict[str, Any]:
     """

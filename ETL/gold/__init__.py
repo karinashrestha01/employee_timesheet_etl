@@ -1,4 +1,3 @@
-# ETL/gold/__init__.py
 """
 Gold Layer - Dimensional model for analytics and reporting.
 Creates dimension and fact tables from cleaned staging data.

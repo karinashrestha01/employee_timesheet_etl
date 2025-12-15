@@ -164,6 +164,7 @@ def validate_staging_referential_integrity(emp_df: pd.DataFrame, ts_df: pd.DataF
     
     # Find orphan timesheet records
     orphan_ids = ts_emp_ids - emp_ids
+    # Please add comment here
     orphan_count = ts_df[ts_df["employee_id"].isin(orphan_ids)].shape[0]
     
     report.add(ValidationResult(
