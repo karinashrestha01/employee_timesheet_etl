@@ -1,4 +1,3 @@
-# ETL/__init__.py
 """
 ETL Pipeline for Medallion Architecture.
 

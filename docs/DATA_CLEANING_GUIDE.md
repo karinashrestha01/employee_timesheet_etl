@@ -1,7 +1,5 @@
 # Data Cleaning & Standardization Technical Guide
 
-> **Version**: 1.0  
-> **Last Updated**: December 2024  
 > **ETL Pipeline**: Medallion Architecture (Bronze → Silver → Gold)
 
 ---

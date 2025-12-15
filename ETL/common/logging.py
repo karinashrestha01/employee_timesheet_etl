@@ -1,4 +1,3 @@
-# ETL/common/logging.py
 """
 Centralized logging configuration for ETL pipeline.
 Provides consistent formatting and log level management.

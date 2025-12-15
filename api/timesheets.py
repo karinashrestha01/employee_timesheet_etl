@@ -1,5 +1,3 @@
-# api/timesheets.py
-"""Timesheet read-only endpoints."""
 
 import sys
 from pathlib import Path

@@ -1,4 +1,3 @@
-# api/main.py
 """FastAPI application entry point."""
 
 import sys

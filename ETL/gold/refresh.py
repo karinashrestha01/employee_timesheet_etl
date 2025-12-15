@@ -1,4 +1,3 @@
-# ETL/gold/refresh.py
 """
 Refresh Gold layer fact_timesheet with updated transformations.
 Truncates and reloads the fact_timesheet table only.

@@ -1,4 +1,3 @@
-# ETL/common/__init__.py
 
 from ETL.common.quality_checks import (
     QCResult,

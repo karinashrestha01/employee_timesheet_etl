@@ -1,6 +1,3 @@
-# api/employees.py
-"""Employee CRUD endpoints."""
-
 import sys
 from pathlib import Path
 from typing import Optional
