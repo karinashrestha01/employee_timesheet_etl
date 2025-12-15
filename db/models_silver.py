@@ -1,4 +1,3 @@
-# db/models_silver.py
 from sqlalchemy import Column, Integer, String, DateTime, Date, Float, Text
 from sqlalchemy.orm import declarative_base
 from datetime import datetime

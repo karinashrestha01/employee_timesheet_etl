@@ -1,4 +1,3 @@
-# db/models_bronze.py
 from sqlalchemy import Column, Integer, String, DateTime, Text
 from sqlalchemy.orm import declarative_base
 from datetime import datetime
@@ -22,7 +21,7 @@ class RawEmployee(BronzeBase):
     department_id = Column(String)
     department_name = Column(String)
     hire_date = Column(String)
-    term_date = Column(String)
+    term_date = Column(String, doc="Termination date")
     
     # Metadata columns
     source_file = Column(String, nullable=False)
