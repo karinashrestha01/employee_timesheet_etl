@@ -1,4 +1,3 @@
-# api/schemas.py
 """Pydantic schemas for request/response validation."""
 
 from datetime import date, datetime
@@ -6,9 +5,7 @@ from typing import Optional, List
 from pydantic import BaseModel, Field
 
 
-# =============================================
 # EMPLOYEE SCHEMAS
-# =============================================
 
 class EmployeeBase(BaseModel):
     """Base employee schema with common fields."""
@@ -59,9 +56,8 @@ class EmployeeListResponse(BaseModel):
     employees: List[EmployeeResponse]
 
 
-# =============================================
+
 # DEPARTMENT SCHEMAS (for reference)
-# =============================================
 
 class DepartmentResponse(BaseModel):
     """Schema for department response."""
@@ -74,9 +70,7 @@ class DepartmentResponse(BaseModel):
         from_attributes = True
 
 
-# =============================================
 # TIMESHEET SCHEMAS
-# =============================================
 
 class TimesheetResponse(BaseModel):
     """Schema for timesheet response."""
