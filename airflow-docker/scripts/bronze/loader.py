@@ -1,6 +1,5 @@
 import os
 import logging
-from pathlib import Path
 from datetime import datetime
 from typing import Optional, Set, Dict, Any
 
@@ -17,9 +16,13 @@ logger = logging.getLogger(__name__)
 # SCHEMA AND TABLE MANAGEMENT
 def create_bronze_schema(engine) -> None:
     """Create the 'raw' schema if it doesn't exist."""
-    with engine.connect() as conn:
+    # with engine.connect() as conn:
+    #     conn.execute(text("CREATE SCHEMA IF NOT EXISTS raw"))
+    #     conn.commit()
+    # logger.info("Schema 'raw' created or already exists")
+    with engine.begin() as conn:
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS raw"))
-        conn.commit()
+    
     logger.info("Schema 'raw' created or already exists")
 
 

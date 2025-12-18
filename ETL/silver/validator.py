@@ -1,4 +1,3 @@
-# ETL/silver_validation.py
 """
 Silver Layer Validation - Quality checks for staging data before promotion to Gold.
 """

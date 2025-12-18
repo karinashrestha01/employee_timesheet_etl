@@ -208,11 +208,6 @@ def load_incremental_timesheets(session, engine, batch_id: str) -> pd.DataFrame:
     """Load and transform new timesheet records from Bronze layer."""
     watermark = get_watermark(session, "raw_timesheet")
     logger.info(f"Timesheet watermark: {watermark}")
-    # query = f"""
-    #     SELECT * FROM raw.raw_timesheet
-    #     WHERE loaded_at > '{watermark}'
-    #     ORDER BY loaded_at
-    # """
     watermark = watermark.strftime("%Y-%m-%d %H:%M:%S")
     query = f"""
         SELECT * FROM raw.raw_timesheet

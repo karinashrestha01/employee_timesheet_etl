@@ -1,4 +1,4 @@
-1) Active Headcount Over Time
+-- 1) Active Headcount Over Time
 SELECT 
     d.work_date,
     COUNT(DISTINCT e.employee_id) AS active_headcount
@@ -11,7 +11,7 @@ GROUP BY d.work_date
 ORDER BY d.work_date;
 
 
-2)Turnover Trend
+-- 2)Turnover Trend
 SELECT 
     EXTRACT(YEAR FROM termination_date) AS termination_year,
     COUNT(*) AS total_terminated
@@ -20,8 +20,8 @@ WHERE termination_date <> '2262-01-01'
 GROUP BY EXTRACT(YEAR FROM termination_date)
 ORDER BY termination_year;
 
-3)Average Tenure by Department
-Average duration employees worked per department.
+-- 3)Average Tenure by Department
+-- Average duration employees worked per department.
 SELECT 
     d.department_name,d.department_id,
     ROUND(AVG((e.termination_date - e.hire_date) / 365), 0) AS avg_tenure_years
@@ -33,8 +33,8 @@ GROUP BY d.department_name,d.department_id
 ORDER BY d.department_id;
 
 
-4)Average Working Hours per Employee
-Mean working hours per day/week.
+-- 4)Average Working Hours per Employee
+-- Mean working hours per day/week.
 SELECT 
     e.employee_id,
     e.first_name,
@@ -47,7 +47,7 @@ GROUP BY e.employee_id, e.first_name, e.last_name
 ORDER BY avg_daily_hours DESC;
 
 
-5)Late Arrival Frequency
+-- 5)Late Arrival Frequency
 SELECT 
     e.employee_id,
     e.first_name,
@@ -61,7 +61,7 @@ WHERE
 GROUP BY e.employee_id, e.first_name, e.last_name
 ORDER BY late_days DESC;
     
-6)Early Departure Count
+-- 6)Early Departure Count
 SELECT 
     e.employee_id,
     e.first_name,
@@ -75,8 +75,8 @@ GROUP BY e.employee_id, e.first_name, e.last_name
 ORDER BY early_departure_days DESC;
 
 
-7) Total Overtime Count
-calculating the average hours worked over the last 7 days for each employee.
+-- 7) Total Overtime Count
+-- calculating the average hours worked over the last 7 days for each employee.
 SELECT 
     employee_key,
     COUNT(*) AS overtime_count
@@ -97,8 +97,8 @@ GROUP BY
 ORDER BY 
     overtime_count DESC;
 
-8)Rolling Average Working Hours
-calculating the average hours worked over the last 7 days for each employee.
+-- 8)Rolling Average Working Hours
+-- calculating the average hours worked over the last 7 days for each employee.
 SELECT 
     f.employee_key,
     e.first_name,
@@ -114,8 +114,8 @@ JOIN dim_employee e
     ON f.employee_key = e.employee_key
 ORDER BY f.employee_key, f.work_date;
 
-9)Early Attribution Rate 
-proportion of employees who leave a company within a short period after joining, usually within the first few months (commonly 3–6 months).
+-- 9)Early Attribution Rate 
+-- proportion of employees who leave a company within a short period after joining, usually within the first few months (commonly 3–6 months).
 SELECT 
     ROUND(
         COUNT(*) FILTER (WHERE (termination_date - hire_date) <= 90)::decimal

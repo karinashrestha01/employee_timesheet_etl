@@ -102,10 +102,7 @@ def clean_date_column_with_sentinel(series: pd.Series) -> pd.Series:
     return result.fillna(SENTINEL_END_DATE)
 
 
-# =============================================================================
 # STANDARD COMMENT CATEGORIES
-# =============================================================================
-
 STANDARD_COMMENT_CATEGORIES = {
     # Early Out - employee left earlier than scheduled
     "EARLY OUT": ["EARLY_OUT", "EARLY OUT", "EARLYOUT", "EARLY", "LEFT_EARLY", "LEFT EARLY"],

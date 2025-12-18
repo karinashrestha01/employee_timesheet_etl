@@ -1,4 +1,3 @@
-# ETL/silver/__init__.py
 """
 Silver Layer - Data cleaning, validation, and transformation.
 Implements incremental loading with watermark timestamps.

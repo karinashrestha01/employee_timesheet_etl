@@ -1,0 +1,4 @@
+project:
+    name: airflow-docker
+postgres:
+  port: 8432    

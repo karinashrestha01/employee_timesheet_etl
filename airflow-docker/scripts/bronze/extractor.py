@@ -6,9 +6,9 @@ logger = logging.getLogger(__name__)
 
 
 def extract_from_minio(
-    endpoint: str = "localhost:9000",
-    access_key: str = "admin",
-    secret_key: str = "password",
+    endpoint: str = "minio:9000",
+    access_key: str = "minioadmin",
+    secret_key: str = "minioadmin",
     bucket_name: str = "rawdata",
     download_dir: str = "datasets",
     secure: bool = False,
