@@ -1,4 +1,3 @@
-# api/database.py
 """Database session dependency for FastAPI."""
 
 import sys

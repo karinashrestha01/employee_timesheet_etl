@@ -207,3 +207,8 @@ marimo/_lsp/
 __marimo__/
 
 .minio.sys
+
+# Airflow
+airflow-docker/logs/
+airflow-docker/logs/**
+

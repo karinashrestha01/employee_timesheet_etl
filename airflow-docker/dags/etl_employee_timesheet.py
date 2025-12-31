@@ -6,8 +6,6 @@ Extracts data from MinIO and loads into PostgreSQL Bronze tables
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-# from airflow.utils.dates import days_ago
-from datetime import datetime, timedelta
 from pathlib import Path
 import logging
 import sys
@@ -40,7 +38,7 @@ dag = DAG(
     default_args=default_args,
     description='Extract from MinIO and Load to PostgreSQL Bronze Layer',
     schedule='@daily',  # Run daily at 2 AM
-    start_date=datetime(2025, 12, 17),
+    start_date=datetime(2025, 12, 24),
     catchup=False,
     tags=['bronze', 'etl', 'minio', 'postgres'],
 )

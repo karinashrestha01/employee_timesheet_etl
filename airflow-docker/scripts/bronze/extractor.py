@@ -66,31 +66,5 @@ def extract_from_minio(
     return download_dir
 
 
-# def extract_from_local(
-#     source_dir: str,
-#     download_dir: str = "datasets",
-#     file_patterns: Optional[List[str]] = None,
-# ) -> str:
-#     import shutil
-#     from pathlib import Path
-    
-#     source = Path(source_dir)
-#     target = Path(download_dir)
-#     target.mkdir(parents=True, exist_ok=True)
-    
-#     patterns = file_patterns or ["*.csv"]
-#     copied_files = []
-    
-#     for pattern in patterns:
-#         for file_path in source.glob(pattern):
-#             dest_path = target / file_path.name
-#             shutil.copy2(file_path, dest_path)
-#             copied_files.append(str(dest_path))
-#             logger.info(f"Copied: {file_path.name}")
-    
-#     logger.info(f"Local extraction complete: {len(copied_files)} files copied")
-#     return download_dir
-
-
 if __name__ == "__main__":
     extract_from_minio()

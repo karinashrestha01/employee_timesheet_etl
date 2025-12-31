@@ -232,6 +232,7 @@ def load_incremental_timesheets(session, engine, batch_id: str) -> pd.DataFrame:
 
 
 def insert_staging_data(df: pd.DataFrame, table_class, session, batch_size: int = 1000):
+    # try , finally
     """Insert data into staging tables."""
     if df.empty:
         return 0
@@ -279,6 +280,7 @@ def run_silver_transform(validate: bool = True):
         logger.info("Processing employees...")
         emp_df = load_incremental_employees(session, engine, batch_id)
         emp_count = insert_staging_data(emp_df, StagingEmployee, session)
+        # silver max check 
         
         # Process timesheets
         logger.info("-" * 40)

@@ -274,7 +274,6 @@ def run_gold_load() -> Dict[str, Any]:
         logger.info("=" * 60)
         logger.info("GOLD LAYER COMPLETE")
         logger.info("=" * 60)
-        breakpoint()
 
         return {
             "status": "success",

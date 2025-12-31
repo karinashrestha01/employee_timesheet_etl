@@ -73,12 +73,12 @@ class FactTimesheet(Base):
     employee_key = Column(Integer, ForeignKey("dim_employee.employee_key"), nullable=False, index=True)
     department_key = Column(Integer, ForeignKey("dim_department.department_key"), nullable=True, index=True)
     work_date = Column(Date, ForeignKey("dim_date.work_date"), index=True)
-    punch_in = Column(DateTime)
+    punch_in = Column(DateTime) #max , latest
     punch_out = Column(DateTime)
     scheduled_start = Column(String)
     scheduled_end = Column(String)
-    hours_worked = Column(Float)
-    pay_code = Column(String)
+    hours_worked = Column(Float) #sum
+    pay_code = Column(String) #dim_pay_code
     punch_in_comment = Column(String)
     punch_out_comment = Column(String)
 
