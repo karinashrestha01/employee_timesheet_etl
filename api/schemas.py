@@ -2,14 +2,14 @@
 
 from datetime import date, datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # EMPLOYEE SCHEMAS
 
 class EmployeeBase(BaseModel):
     """Base employee schema with common fields."""
-    employee_id: str = Field(..., description="Natural/business key for employee")
+    employee_id: Optional[str] = Field(None, description="Natural/business key for employee")
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     job_title: Optional[str] = None
@@ -17,12 +17,25 @@ class EmployeeBase(BaseModel):
     hire_date: Optional[date] = None
     termination_date: Optional[date] = None
     is_active: Optional[int] = Field(1, description="1 = current, 0 = historical")
+    
+    @field_validator('is_active')
+    @classmethod
+    def validate_is_active(cls, v):
+        if v is not None and v not in [0, 1]:
+            raise ValueError('is_active must be 0 or 1')
+        return v
+    
+    @model_validator(mode='after')
+    def validate_dates(self):
+        if self.hire_date and self.termination_date:
+            if self.termination_date < self.hire_date:
+                raise ValueError('termination_date must be after hire_date')
+        return self
 
 
 class EmployeeCreate(EmployeeBase):
     """Schema for creating a new employee."""
-    start_date: date = Field(..., description="SCD2 start date")
-    end_date: Optional[date] = None
+    employee_id: str = Field(..., description="Natural/business key for employee (required)")
 
 
 class EmployeeUpdate(BaseModel):
@@ -35,14 +48,11 @@ class EmployeeUpdate(BaseModel):
     hire_date: Optional[date] = None
     termination_date: Optional[date] = None
     is_active: Optional[int] = None
-    end_date: Optional[date] = None
 
 
 class EmployeeResponse(EmployeeBase):
     """Schema for employee response with all fields."""
     employee_key: int
-    start_date: date
-    end_date: Optional[date] = None
 
     class Config:
         from_attributes = True

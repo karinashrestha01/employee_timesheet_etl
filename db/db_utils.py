@@ -54,11 +54,18 @@ def upsert_dataframe(df: pd.DataFrame, table_class, session: Session, key_cols: 
     df = clean_df_for_sql(df)
     records = df.to_dict(orient="records")
     
+    # Get primary key column names to exclude from updates
+    pk_cols = {col.name for col in table_class.__table__.primary_key.columns}
+    
     for i in range(0, len(records), batch_size):
         batch = records[i:i+batch_size]
         stmt = insert(table_class).values(batch)
-        # ON CONFLICT → update only end_date for historical SCD2
-        conflict_cols = {col.name: col for col in table_class.__table__.columns if col.name not in key_cols}
+        # ON CONFLICT → update all columns EXCEPT primary keys and natural keys
+        # This prevents foreign key violations when updating dimension tables
+        conflict_cols = {
+            col.name: col for col in table_class.__table__.columns 
+            if col.name not in key_cols and col.name not in pk_cols
+        }
         stmt = stmt.on_conflict_do_update(
             index_elements=key_cols,
             set_={col: stmt.excluded[col] for col in conflict_cols}
