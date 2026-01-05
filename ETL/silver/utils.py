@@ -94,12 +94,14 @@ def clean_date_column(series: pd.Series) -> pd.Series:
 
 def clean_date_column_with_sentinel(series: pd.Series) -> pd.Series:
     """
-    Clean date column and replace null values with sentinel date (2262-01-01).
-    Use this for termination_date, end_date columns.
+    Clean date column and replace null values with sentinel date (2222-12-31).
+    Use this ONLY for SCD2 end_date columns, NOT for termination_date.
+    termination_date should allow NULL values for active employees.
     """
     result = clean_date_column(series)
     # Fill null dates with sentinel date
     return result.fillna(SENTINEL_END_DATE)
+
 
 
 # STANDARD COMMENT CATEGORIES

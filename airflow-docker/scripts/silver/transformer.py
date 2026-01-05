@@ -50,6 +50,7 @@ def create_silver_tables(engine):
 def get_watermark(session, table_name: str) -> datetime:
     """Get the last processed watermark for a table."""
     result = session.query(ETLWatermark).filter_by(table_name=table_name).first()
+    breakpoint()
     if result:
         return result.last_processed_at
     return datetime.min

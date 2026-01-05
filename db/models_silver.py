@@ -50,6 +50,8 @@ class StagingTimesheet(SilverBase):
     punch_in_comment = Column(Text)
     punch_out_comment = Column(Text)
     
+    scheduled_start_datetime = Column(DateTime)
+    scheduled_end_datetime = Column(DateTime)
     # ETL metadata
     source_file = Column(String)
     bronze_loaded_at = Column(DateTime)

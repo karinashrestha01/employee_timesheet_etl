@@ -82,7 +82,6 @@ trigger_bronze = TriggerDagRunOperator(
     dag=dag,
 )
 
-
 # Task 3: Monitor Bronze Layer completion
 def monitor_bronze_completion(**context):
     """Monitor and log Bronze layer completion"""

@@ -211,3 +211,4 @@ airflow-docker/logs/
 airflow-docker/logs/**
 
 minio/minio_storage/**
+.docs

@@ -1,0 +1,30 @@
+-- 1. Overall Early Attrition Rate (3, 6, 12 months)
+WITH terminated_employees AS (
+    SELECT
+        employee_id,
+        first_name,
+        last_name,
+        department_name,
+        job_title,
+        hire_date,
+        termination_date,
+        (termination_date - hire_date) AS tenure_days,
+        ROUND((termination_date - hire_date) / 30.44, 2) AS tenure_months,
+        CASE WHEN (termination_date - hire_date) <= 90 THEN 1 ELSE 0 END AS early_attrition_3m,
+        CASE WHEN (termination_date - hire_date) <= 180 THEN 1 ELSE 0 END AS early_attrition_6m,
+        CASE WHEN (termination_date - hire_date) <= 365 THEN 1 ELSE 0 END AS early_attrition_12m
+    FROM staging.stg_employee
+    WHERE is_active = 0
+        AND termination_date IS NOT NULL
+        AND hire_date IS NOT NULL
+)
+SELECT
+    COUNT(*) AS total_terminations,
+    SUM(early_attrition_3m) AS early_attrition_3m_count,
+    SUM(early_attrition_6m) AS early_attrition_6m_count,
+    SUM(early_attrition_12m) AS early_attrition_12m_count,
+    ROUND((SUM(early_attrition_3m)::NUMERIC / COUNT(*) * 100), 2) AS early_attrition_rate_3m,
+    ROUND((SUM(early_attrition_6m)::NUMERIC / COUNT(*) * 100), 2) AS early_attrition_rate_6m,
+    ROUND((SUM(early_attrition_12m)::NUMERIC / COUNT(*) * 100), 2) AS early_attrition_rate_12m,
+    ROUND(AVG((termination_date - hire_date) / 30.44), 2) AS avg_tenure_months
+FROM terminated_employees;
