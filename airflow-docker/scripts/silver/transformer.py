@@ -21,9 +21,7 @@ from scripts.silver.utils import (
     clean_string_column,
     clean_numeric_column,
     clean_date_column,
-    clean_date_column_with_sentinel,
-    clean_comment,
-    SENTINEL_END_DATE
+    clean_comment
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -33,8 +31,12 @@ logger = logging.getLogger(__name__)
 # SCHEMA AND TABLE MANAGEMENT
 def create_staging_schema(engine):
     """Create the 'staging' schema if it doesn't exist."""
-    with engine.begin() as conn:  # ✅ Use begin() instead of connect()
+    # CHANGED: Use engine.begin() instead of engine.connect()
+    # engine.begin() automatically commits at the end of the block
+    with engine.begin() as conn:
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS staging"))
+    
+    # Removed conn.commit() because engine.begin() handles it
     logger.info("Schema 'staging' created or already exists")
 
 
@@ -50,7 +52,6 @@ def create_silver_tables(engine):
 def get_watermark(session, table_name: str) -> datetime:
     """Get the last processed watermark for a table."""
     result = session.query(ETLWatermark).filter_by(table_name=table_name).first()
-    breakpoint()
     if result:
         return result.last_processed_at
     return datetime.min
@@ -99,16 +100,23 @@ def clean_employee_data(df: pd.DataFrame) -> pd.DataFrame:
     else:
         df["hire_date"] = pd.NaT
     
-    # Termination date with sentinel
+    # Termination date - keep actual dates, replace sentinel with NULL
+    # The Bronze layer stores termination date in 'term_date' column
+    SENTINEL_DATE = pd.to_datetime("2222-12-31")
     if "term_date" in df.columns:
-        df["termination_date"] = clean_date_column_with_sentinel(df["term_date"])
+        df["termination_date"] = clean_date_column(df["term_date"])
     elif "termination_date" in df.columns:
-        df["termination_date"] = clean_date_column_with_sentinel(df["termination_date"])
+        df["termination_date"] = clean_date_column(df["termination_date"])
+    elif "active_status" in df.columns:
+        df["termination_date"] = clean_date_column(df["active_status"])
     else:
-        df["termination_date"] = SENTINEL_END_DATE
+        df["termination_date"] = pd.NaT
     
-    # Calculate is_active
-    df["is_active"] = (df["termination_date"] == SENTINEL_END_DATE).astype(int)
+    # Replace sentinel date with NULL for active employees
+    df.loc[df["termination_date"] == SENTINEL_DATE, "termination_date"] = pd.NaT
+    
+    # Calculate is_active - NULL termination_date means active
+    df["is_active"] = df["termination_date"].isna().astype(int)
     
     # Select final columns
     columns = [
@@ -128,7 +136,6 @@ def clean_timesheet_data(df: pd.DataFrame) -> pd.DataFrame:
     Clean and transform raw timesheet data.
     Handles null values for all fields.
     """
-    # breakpoint()
     # Rename columns
     df = df.rename(columns={
         "client_employee_id": "employee_id",
@@ -147,6 +154,9 @@ def clean_timesheet_data(df: pd.DataFrame) -> pd.DataFrame:
     df["work_date"] = clean_date_column(df["work_date"]) if "work_date" in df.columns else pd.NaT
     df["punch_in"] = clean_date_column(df["punch_in"]) if "punch_in" in df.columns else pd.NaT
     df["punch_out"] = clean_date_column(df["punch_out"]) if "punch_out" in df.columns else pd.NaT
+    # breakpoint()
+    df["scheduled_start_datetime"] = clean_date_column(df["scheduled_start_datetime"]) if "scheduled_start_datetime" in df.columns else pd.NaT
+    df["scheduled_end_datetime"] = clean_date_column(df["scheduled_end_datetime"]) if "scheduled_end_datetime" in df.columns else pd.NaT
 
     # Numeric columns
     df["hours_worked"] = clean_numeric_column(df["hours_worked"], default_value=0.0) if "hours_worked" in df.columns else 0.0
@@ -165,14 +175,15 @@ def clean_timesheet_data(df: pd.DataFrame) -> pd.DataFrame:
     # Select final columns
     columns = [
         "employee_id", "work_date", "punch_in", "punch_out",
-        "hours_worked", "pay_code", "punch_in_comment", "punch_out_comment",
+        "hours_worked", "pay_code" ,"punch_in_comment", "punch_out_comment","scheduled_start_datetime","scheduled_end_datetime",
         "source_file", "loaded_at"
     ]
     df = df[[c for c in columns if c in df.columns]]
     df = df.rename(columns={"loaded_at": "bronze_loaded_at"})
-    
+    # breakpoint()
     logger.info(f"Timesheet data cleaned: {len(df)} records")
     return df
+    
 
 # INCREMENTAL LOADING FUNCTIONS
 def load_incremental_employees(session, engine, batch_id: str) -> pd.DataFrame:
@@ -208,12 +219,12 @@ def load_incremental_timesheets(session, engine, batch_id: str) -> pd.DataFrame:
     """Load and transform new timesheet records from Bronze layer."""
     watermark = get_watermark(session, "raw_timesheet")
     logger.info(f"Timesheet watermark: {watermark}")
-    watermark = watermark.strftime("%Y-%m-%d %H:%M:%S")
     query = f"""
         SELECT * FROM raw.raw_timesheet
         WHERE loaded_at > '{watermark}'
         ORDER BY loaded_at
     """
+
     df = pd.read_sql(query, engine)
     if df.empty:
         logger.info("No new timesheet records to process")
@@ -232,6 +243,7 @@ def load_incremental_timesheets(session, engine, batch_id: str) -> pd.DataFrame:
 
 
 def insert_staging_data(df: pd.DataFrame, table_class, session, batch_size: int = 1000):
+    # try , finally
     """Insert data into staging tables."""
     if df.empty:
         return 0
@@ -279,6 +291,7 @@ def run_silver_transform(validate: bool = True):
         logger.info("Processing employees...")
         emp_df = load_incremental_employees(session, engine, batch_id)
         emp_count = insert_staging_data(emp_df, StagingEmployee, session)
+        # silver max check 
         
         # Process timesheets
         logger.info("-" * 40)

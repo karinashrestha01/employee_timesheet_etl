@@ -1,17 +1,16 @@
-import os
-import logging
-from typing import Optional, List
+from pathlib import Path
 
+from minio import Minio
+
+import sys, os
+from dotenv import load_dotenv
+
+import logging
 logger = logging.getLogger(__name__)
 
-
 def extract_from_minio(
-    endpoint: str = "localhost:9000",
-    access_key: str = "admin",
-    secret_key: str = "password",
-    bucket_name: str = "rawdata",
-    download_dir: str = "datasets",
-    secure: bool = False,
+    *,
+    secure: bool = False
 ) -> str:
     """
     Extract data files from MinIO object storage.
@@ -30,41 +29,47 @@ def extract_from_minio(
     Raises:
         ExtractionError: If extraction fails
     """
-    try:
-        from minio import Minio
-    except ImportError:
-        logger.error("minio package not installed. Run: pip install minio")
-        raise ImportError("minio package required for MinIO extraction")
-    
-    logger.info(f"Connecting to MinIO at {endpoint}")
-    
-    client = Minio(
-        endpoint,
-        access_key=access_key,
-        secret_key=secret_key,
-        secure=secure,
-    )
-    
-    os.makedirs(download_dir, exist_ok=True)
-    
+    """Download the raw files from minIO bucket."""
+    # endpoint = bronze_settings.minio_host
+    # access_key = bronze_settings.minio_root_user
+    # secret_key = bronze_settings.minio_root_password
+    # bucket_name = bronze_settings.minio_bucket_name
+    # download_dir_str = bronze_settings.minio_download_dir
+
+    endpoint: str = os.getenv("MINIO_HOST")
+    access_key: str  = os.getenv("MINIO_ROOT_USER")
+    secret_key: str  = os.getenv("MINIO_ROOT_PASSWORD")
+    bucket_name: str  = os.getenv("MINIO_BUCKET_NAME")
+    download_dir_str: str  = os.getenv("MINIO_DOWNLOAD_DIR")
+
+    if not all([endpoint, access_key, secret_key, bucket_name, download_dir_str]):
+        msg = "Missing MinIO Configuration"
+        raise ValueError(msg)
+
+    download_path = Path(download_dir_str)
+
+    logger.info("Connecting to MinIO at: %s", endpoint)
+    client = Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=secure)
+    download_path.mkdir(parents=True, exist_ok=True)
+
     objects = client.list_objects(bucket_name, recursive=True)
-    downloaded_files: List[str] = []
-    
+    downloaded_files: list[Path] = []
+
     for obj in objects:
-        # Create local file path
-        local_path = os.path.join(download_dir, obj.object_name)
-        
-        # Create folders if they don't exist
-        os.makedirs(os.path.dirname(local_path), exist_ok=True)
-        
-        # Download file
-        client.fget_object(bucket_name, obj.object_name, local_path)
-        downloaded_files.append(local_path)
-        logger.info(f"Downloaded: {local_path}")
-    
-    logger.info(f"Extraction complete: {len(downloaded_files)} files downloaded")
-    return download_dir
+        local_file_path = download_path / obj.object_name
+        local_file_path.parent.mkdir(parents=True, exist_ok=True)
+        client.fget_object(bucket_name, obj.object_name, str(local_file_path))
+        downloaded_files.append(local_file_path)
+        logger.info("Downloaded: %s", local_file_path)
+
+    logger.info("Download complete: %s files downloaded", len(downloaded_files))
+    return str(download_path)
 
 
 if __name__ == "__main__":
-    extract_from_minio()
+    try:
+        download_path = extract_from_minio()
+        logger.info("Files downloaded to: %s", download_path)
+    except Exception:
+        logger.exception("Download failed due to an unexpected error")
+

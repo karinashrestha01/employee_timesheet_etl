@@ -68,6 +68,10 @@ class RawTimesheet(BronzeBase):
     
     # Original CSV columns (all stored as strings)
     client_employee_id = Column(String)
+    department_id = Column(String)
+    department_name = Column(String)
+    home_department_id = Column(String)
+    home_department_name = Column(String)
     punch_apply_date = Column(String)
     punch_in_datetime = Column(String)
     punch_out_datetime = Column(String)

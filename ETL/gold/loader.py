@@ -4,7 +4,6 @@ Creates dimension and fact tables from cleaned staging data.
 """
 
 import logging
-from datetime import date
 from typing import Dict, Any
 
 import pandas as pd
@@ -25,8 +24,6 @@ SENTINEL_END_DATE = pd.to_datetime("2222-12-01")
 
 
 # TABLE MANAGEMENT
-
-
 def create_gold_tables(engine) -> None:
     """Create Gold layer tables (public schema)."""
     Base.metadata.create_all(engine)
@@ -58,7 +55,7 @@ def insert_new_dates(df: pd.DataFrame, table_class, session, batch_size: int = 5
         session.commit()
         
     from db.db_utils import logger
-    logger.info(f"Inserted new date records (skipped existing)")
+    logger.info("Inserted new date records (skipped existing)")
 
 
 def load_staging_employees(engine) -> pd.DataFrame:
@@ -83,19 +80,24 @@ def transform_dim_department(emp_df: pd.DataFrame) -> pd.DataFrame:
     """
     Create dimension department from staging employee data.
     
+    Note: department_key is NOT generated here - the database auto-increments it.
+    We only prepare the natural key (department_id) and attributes.
+    
     Args:
         emp_df: Staging employee DataFrame
         
     Returns:
-        Transformed department dimension DataFrame
+        Transformed department dimension DataFrame (without department_key)
     """
-    # today = pd.to_datetime(date.today())
-    
     df_dept = emp_df[["department_id", "department_name"]].drop_duplicates().reset_index(drop=True)
-    df_dept = df_dept.reset_index()
-    df_dept.rename(columns={"index": "department_key"}, inplace=True)
-    df_dept["department_key"] += 1
     
+    # Validate: ensure no null department_ids
+    null_dept_count = df_dept["department_id"].isna().sum()
+    if null_dept_count > 0:
+        logger.warning(f"Found {null_dept_count} null department_ids - these will be excluded")
+        df_dept = df_dept[df_dept["department_id"].notna()]
+    
+    logger.debug(f"Prepared {len(df_dept)} unique departments for upsert")
     return clean_nulls(df_dept)
 
 
@@ -103,35 +105,50 @@ def transform_dim_employee(emp_df: pd.DataFrame, dept_df: pd.DataFrame) -> pd.Da
     """
     Create dimension employee from staging data.
     
+    Note: employee_key is NOT generated here - the database auto-increments it.
+    dept_df must contain actual DB-generated department_keys (from reload after insert).
+    
     Args:
         emp_df: Staging employee DataFrame
-        dept_df: Department dimension DataFrame (for key lookup)
+        dept_df: Department dimension DataFrame WITH DB-generated department_key values
         
     Returns:
-        Transformed employee dimension DataFrame
+        Transformed employee dimension DataFrame (without employee_key)
     """
-    # today = pd.to_datetime(date.today())
+    # Validate dept_df has required columns
+    required_cols = {"department_id", "department_key"}
+    if not required_cols.issubset(dept_df.columns):
+        raise ValueError(f"dept_df must contain columns: {required_cols}")
     
-    # Merge with department to get department_key
+    # Merge with department to get department_key (FK)
     df = emp_df.merge(
         dept_df[["department_id", "department_key"]], 
         on="department_id", 
         how="left"
     )
     
-    # Assign employee keys
-    df["employee_key"] = range(1, len(df) + 1)
-    # df["start_date"] = today
-    # df["end_date"] = SENTINEL_END_DATE
+    # Log employees with missing department
+    orphan_count = df["department_key"].isna().sum()
+    if orphan_count > 0:
+        logger.warning(f"Found {orphan_count} employees without matching department")
     
-    # Select columns for dimension
+    # Select columns for dimension (excluding employee_key - DB auto-generates)
     columns = [
-        "employee_key", "employee_id", "first_name", "last_name",
+        "employee_id", "first_name", "last_name",
         "job_title", "department_key", "hire_date", "termination_date",
         "is_active"
     ]
     
-    return clean_nulls(df[columns])
+    df = df[[c for c in columns if c in df.columns]]
+    
+    # Convert department_key to int where not null
+    if "department_key" in df.columns:
+        df["department_key"] = df["department_key"].apply(
+            lambda x: int(x) if pd.notna(x) else None
+        )
+    
+    logger.debug(f"Prepared {len(df)} employees for upsert")
+    return clean_nulls(df)
 
 
 def transform_dim_date(ts_df: pd.DataFrame) -> pd.DataFrame:
@@ -327,6 +344,16 @@ def run_gold_load() -> Dict[str, Any]:
     Run the complete Gold layer ETL.
     Transforms staging data into dimensional model.
     
+    Process Flow:
+    1. Load staging data
+    2. Upsert dim_department (using department_id as natural key)
+    3. Reload dim_department to get DB-generated department_keys
+    4. Upsert dim_employee (using employee_id as natural key) with correct department_keys
+    5. Reload dim_employee to get DB-generated employee_keys
+    6. Upsert dim_date and dim_pay_code
+    7. Reload dim_pay_code to get DB-generated pay_code_keys
+    8. Transform and upsert fact_timesheet with correct foreign keys
+    
     Returns:
         dict: Load statistics for each table
     """
@@ -338,11 +365,21 @@ def run_gold_load() -> Dict[str, Any]:
     create_gold_tables(engine)
     
     session = get_session()
+    stats = {
+        "status": "success",
+        "dim_department": 0,
+        "dim_employee": 0,
+        "dim_date": 0,
+        "dim_pay_code": 0,
+        "fact_timesheet": 0
+    }
     
     try:
-        # Load staging data
+
+        # STEP 1: Load staging data
+
         logger.info("-" * 40)
-        logger.info("Loading data from staging...")
+        logger.info("STEP 1: Loading data from staging...")
         stg_emp_df = load_staging_employees(engine)
         stg_ts_df = load_staging_timesheets(engine)
 
@@ -350,63 +387,125 @@ def run_gold_load() -> Dict[str, Any]:
             logger.warning("No employee data in staging - skipping Gold load")
             return {"status": "skipped", "reason": "no staging data"}
         
-        # Transform to dimensional model
+        logger.info(f"  Loaded {len(stg_emp_df)} employees, {len(stg_ts_df)} timesheets from staging")
+        
+
+        # STEP 2: Transform and upsert dim_department
         logger.info("-" * 40)
-        logger.info("Transforming to dimensional model...")
+        logger.info("STEP 2: Processing dim_department...")
         
         df_dept = transform_dim_department(stg_emp_df)
-        logger.info(f"  dim_department: {len(df_dept)} records")
+        logger.info(f"  Transformed {len(df_dept)} unique departments")
         
-        df_emp = transform_dim_employee(stg_emp_df, df_dept)
-        logger.info(f"  dim_employee: {len(df_emp)} records")
+        # Upsert using department_id (natural key) - NOT department_key
+        logger.info("  Upserting dim_department (key: department_id)")
+        upsert_dataframe(df_dept, DimDepartment, session, key_cols=["department_id"])
+        stats["dim_department"] = len(df_dept)
         
-        df_date = transform_dim_date(stg_ts_df)
-        logger.info(f"  dim_date: {len(df_date)} records")
-        
-        df_pay_code = transform_dim_pay_code(stg_ts_df)
-        logger.info(f"  dim_pay_code: {len(df_pay_code)} records")
-        
-        # Load to Gold tables
+
+        # STEP 3: Reload dim_department with DB-generated keys
+
         logger.info("-" * 40)
-        logger.info("Upserting to Gold tables...")
+        logger.info("STEP 3: Reloading dim_department with DB-generated keys...")
         
-        logger.info("  Upserting dim_department...")
-        upsert_dataframe(df_dept, DimDepartment, session, key_cols=["department_key"])
+        df_dept_with_keys = pd.read_sql(
+            "SELECT department_key, department_id, department_name FROM dim_department", 
+            engine
+        )
+        logger.info(f"  Reloaded {len(df_dept_with_keys)} departments with keys")
         
-        logger.info("  Upserting dim_employee...")
-        upsert_dataframe(df_emp, DimEmployee, session, key_cols=["employee_key"])
+
+        # STEP 4: Transform and upsert dim_employee
+
+        logger.info("-" * 40)
+        logger.info("STEP 4: Processing dim_employee...")
         
+        # Pass the reloaded department data with actual DB keys
+        df_emp = transform_dim_employee(stg_emp_df, df_dept_with_keys)
+        logger.info(f"  Transformed {len(df_emp)} employees")
+        
+        # Upsert using employee_id (natural key) - NOT employee_key
+        logger.info("  Upserting dim_employee (key: employee_id)...")
+        upsert_dataframe(df_emp, DimEmployee, session, key_cols=["employee_id"])
+        stats["dim_employee"] = len(df_emp)
+        
+
+        # STEP 5: Reload dim_employee with DB-generated keys
+
+        logger.info("-" * 40)
+        logger.info("STEP 5: Reloading dim_employee with DB-generated keys...")
+        
+        df_emp_with_keys = pd.read_sql(
+            "SELECT employee_key, employee_id, department_key FROM dim_employee", 
+            engine
+        )
+        logger.info(f"Reloaded {len(df_emp_with_keys)} employees with keys")
+        
+
+        # STEP 6: Transform and upsert dim_date and dim_pay_code
+
+        logger.info("-" * 40)
+        logger.info("STEP 6: Processing dim_date and dim_pay_code...")
+        
+        # dim_date
+        df_date = transform_dim_date(stg_ts_df)
+        logger.info(f"  Transformed {len(df_date)} unique dates")
         logger.info("  Inserting new dim_date records...")
         insert_new_dates(df_date, DimDate, session)
+        stats["dim_date"] = len(df_date)
         
-        logger.info("  Upserting dim_pay_code...")
+        # dim_pay_code
+        df_pay_code = transform_dim_pay_code(stg_ts_df)
+        logger.info(f"  Transformed {len(df_pay_code)} unique pay codes")
+        logger.info("  Upserting dim_pay_code (key: pay_code)...")
         upsert_dataframe(df_pay_code, DimPayCode, session, key_cols=["pay_code"])
+        stats["dim_pay_code"] = len(df_pay_code)
         
-        # Reload pay codes with their database-generated keys for fact transformation
-        logger.info("  Reloading dim_pay_code with keys...")
-        df_pay_code_with_keys = pd.read_sql("SELECT pay_code_key, pay_code FROM dim_pay_code", engine)
+
+        # STEP 7: Reload dim_pay_code with DB-generated keys
+
+        logger.info("-" * 40)
+        logger.info("STEP 7: Reloading dim_pay_code with DB-generated keys...")
         
-        # Now transform fact with pay code keys
-        logger.info("  Transforming fact_timesheet with pay code keys...")
-        df_fact = transform_fact_timesheet(stg_ts_df, df_emp, df_pay_code_with_keys)
-        logger.info(f"  fact_timesheet: {len(df_fact)} records")
+        df_pay_code_with_keys = pd.read_sql(
+            "SELECT pay_code_key, pay_code FROM dim_pay_code", 
+            engine
+        )
+        logger.info(f"  Reloaded {len(df_pay_code_with_keys)} pay codes with keys")
         
-        logger.info("  Upserting fact_timesheet...")
-        # Use composite natural key (employee_key, work_date) instead of auto-increment id
-        # This prevents duplicate timesheets for same employee on same date
+
+        # STEP 8: Transform and upsert fact_timesheet
+
+        logger.info("-" * 40)
+        logger.info("STEP 8: Processing fact_timesheet...")
+        
+        # Transform fact with DB-reloaded employee and pay_code keys
+        df_fact = transform_fact_timesheet(stg_ts_df, df_emp_with_keys, df_pay_code_with_keys)
+        logger.info(f"  Transformed {len(df_fact)} timesheet records")
+        
+        logger.info("  Upserting fact_timesheet (key: employee_key, work_date)...")
         upsert_dataframe(df_fact, FactTimesheet, session, key_cols=["employee_key", "work_date"])
+        stats["fact_timesheet"] = len(df_fact)
         
+
+        # COMPLETE
+
         logger.info("=" * 60)
         logger.info("GOLD LAYER COMPLETE")
+        logger.info(f"  Departments: {stats['dim_department']}")
+        logger.info(f"  Employees:   {stats['dim_employee']}")
+        logger.info(f"  Dates:       {stats['dim_date']}")
+        logger.info(f"  Pay Codes:   {stats['dim_pay_code']}")
+        logger.info(f"  Timesheets:  {stats['fact_timesheet']}")
         logger.info("=" * 60)
-        return {
-            "status": "success",
-            "dim_department": len(df_dept),
-            "dim_employee": len(df_emp),
-            "dim_date": len(df_date),
-            "dim_pay_code": len(df_pay_code),
-            "fact_timesheet": len(df_fact)
-        }
+        
+        return stats
+        
+    except Exception as e:
+        logger.error(f"Gold layer ETL failed: {e}")
+        stats["status"] = "failed"
+        stats["error"] = str(e)
+        raise
         
     finally:
         session.close()

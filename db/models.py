@@ -17,7 +17,7 @@ class DimEmployee(Base):
     __tablename__ = "dim_employee"
 
     employee_key = Column(Integer, primary_key=True, autoincrement=True)
-    employee_id = Column(String, nullable=False)  # natural/business key
+    employee_id = Column(String, nullable=False, unique= True)  # natural/business key
     first_name = Column(String)
     last_name = Column(String)
     job_title = Column(String)
@@ -29,6 +29,7 @@ class DimEmployee(Base):
     # end_date = Column(Date)  # SCD2 end
 
     timesheets = relationship("FactTimesheet", back_populates="employee")
+    timesheets = relationship("FactTimesheet", back_populates="employee", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<DimEmployee(key={self.employee_key}, id={self.employee_id}, dept={self.department_key}, name={self.first_name} {self.last_name})>"
@@ -38,7 +39,7 @@ class DimDepartment(Base):
     __tablename__ = "dim_department"
 
     department_key = Column(Integer, primary_key=True, autoincrement=True)
-    department_id = Column(String, nullable=False)  # natural/business key
+    department_id = Column(String, nullable=False, unique= True)  # natural/business key
     department_name = Column(String, nullable=False)
     # is_active = Column(Integer, default=1)  
     # start_date = Column(Date, nullable=False)

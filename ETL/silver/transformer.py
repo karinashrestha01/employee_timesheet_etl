@@ -151,7 +151,7 @@ def clean_timesheet_data(df: pd.DataFrame) -> pd.DataFrame:
     df["work_date"] = clean_date_column(df["work_date"]) if "work_date" in df.columns else pd.NaT
     df["punch_in"] = clean_date_column(df["punch_in"]) if "punch_in" in df.columns else pd.NaT
     df["punch_out"] = clean_date_column(df["punch_out"]) if "punch_out" in df.columns else pd.NaT
-    breakpoint()
+
     df["scheduled_start_datetime"] = clean_date_column(df["scheduled_start_datetime"]) if "scheduled_start_datetime" in df.columns else pd.NaT
     df["scheduled_end_datetime"] = clean_date_column(df["scheduled_end_datetime"]) if "scheduled_end_datetime" in df.columns else pd.NaT
 
@@ -177,7 +177,6 @@ def clean_timesheet_data(df: pd.DataFrame) -> pd.DataFrame:
     ]
     df = df[[c for c in columns if c in df.columns]]
     df = df.rename(columns={"loaded_at": "bronze_loaded_at"})
-    breakpoint()
     logger.info(f"Timesheet data cleaned: {len(df)} records")
     return df
     
